@@ -29,27 +29,28 @@ Plataforma basada en la historia de éxito de *PawBoost* (SaaS de recuperación 
 
 ### Entidad: Usuario
 
-| Atributo | Tipo | Obligatorio | Ejemplo |
-|----------|------|-------------|---------|
-| id | número entero | sí | 1 |
-| nombre | texto | sí | Jandry Sánchez |
-| correo | texto | sí | jandry@ejemplo.com |
-| telefono | texto | sí | 0991234567 |
-| rol | uno de: dueño, agente | sí | dueño |
+| Atributo | Tipo          | Obligatorio | Ejemplo              |
+|----------|---------------|-------------|--------------------  |
+| id       | número entero | sí          | 1                    |
+| nombre   | texto         | sí          | Jandry Sánchez       |
+| correo   | texto         | sí          | jandry@ejemplo.com   |
+| telefono | texto         | sí          | 0991234567           |
+| rol      | uno de: dueño, 
+|          |    agente     | sí          | dueño                |
 
 ### Entidad: ReportePerdido
 
-| Atributo | Tipo | Obligatorio | Ejemplo |
-|----------|------|-------------|---------|
-| id | número entero | sí | 101 |
-| usuario_id | referencia a Usuario | sí | 1 |
-| nombre_mascota | texto | sí | Firulais |
-| especie | uno de: perro, gato, otro | sí | perro |
-| raza | texto | sí | Mestizo |
-| foto_url | texto | sí | https://img.site/101.jpg |
-| ubicacion_referencia | texto | sí | Frente al Parque Central |
-| estado | uno de: activo, en_coincidencia, resuelto | sí | activo |
-| creado | fecha y hora | sí | 2026-09-28 10:00:00 |
+| Atributo       | Tipo                      | Obligatorio | Ejemplo                  |
+|--------------- |---------------------------|-------------|--------------------------|
+| id             | número entero             | sí          | 101                      |
+| usuario_id     | referencia a Usuario      | sí          | 1                        |
+| nombre_mascota | texto                     | sí          | Firulais                 |
+| especie        | uno de: perro, gato, otro | sí          | perro                    |
+| raza           | texto                     | sí          | Mestizo                  |
+| foto_url       | texto                     | sí          | https://img.site/101.jpg |
+| ubicacion_referencia | texto               | sí          | Frente al Parque Central |
+| estado         | uno de: activo, en_coincidencia, resuelto | sí | activo            |
+| creado         | fecha y hora              | sí          | 2026-09-28 10:00:00      |
 
 ### Entidad: ReporteEncontrado
 
@@ -124,3 +125,88 @@ type Coincidencia struct {
 	Estado              string    `gorm:"not null;default:'pendiente'" json:"estado"`
 	Creado              time.Time `json:"creado"`
 }
+
+Elegimos float64 para PuntajeSimilitud mapeado como decimal(5,2) en la BD para almacenar porcentajes con precisión exacta (ej. 85.50%)
+
+
+erDiagram
+    USUARIO ||--o{ REPORTE_PERDIDO : "registra"
+    USUARIO ||--o{ REPORTE_ENCONTRADO : "registra"
+    REPORTE_PERDIDO ||--o{ COINCIDENCIA : "genera"
+    REPORTE_ENCONTRADO ||--o{ COINCIDENCIA : "recibe"
+
+    USUARIO {
+        int id
+        string nombre
+        string correo
+        string rol
+    }
+    REPORTE_PERDIDO {
+        int id
+        string nombre_mascota
+        string especie
+        string estado
+    }
+    REPORTE_ENCONTRADO {
+        int id
+        string especie
+        string ubicacion
+        string estado
+    }
+    COINCIDENCIA {
+        int id
+        float puntaje_similitud
+        string estado
+    }
+
+##diagrama de estado 
+
+stateDiagram-v2
+    [*] --> pendiente
+    pendiente --> confirmado : dueño confirma mascota
+    pendiente --> rechazado : dueño descarta coincidencia
+    confirmado --> [*]
+    rechazado --> [*]
+    note right of confirmado
+        De confirmado no se puede revertir:
+        ambos reportes pasan automáticamente a resuelto.
+    end note
+
+
+
+## 6. Roles y permisos
+
+| Acción                            | Dueño         |Agente
+|----------                         |---------------|-------------|
+| Crear reporte de mascota          |solo los suyos |Todos        |
+| Ver bandeja de coincidencias      | solo los suyos|Todos        |
+| Confirmar / Rechazar coincidencia | solo los suyos| no          |
+| Eliminar reportes                 | solo los suyos|Todos        |
+
+
+
+## 7. Mapa de endpoints por rol
+
+
+| Endpoint              | Rol que lo llama | Pantalla que lo consume | Qué devuelve | Qué valida | Código si falla |
+|----------             |------------------|-------------------------|--------------|------------|-----------------|
+|GET/reporte/perdidos   |  dueño           |Mis Reportes             |Lista JSON de reportes perdidos activos      |Parámetros de búsqueda válidos| 400       |
+|POST /reportes/perdidos|  dueño           |Nuevo Reporte            |Objeto JSON del reporte creado              |Campos obligatorios (nombre, foto, especie)            |422                 |
+|GET /coincidencias     |  dueño           |Bandeja de Coincidencias |Lista de coincidencias pendientes              |Token e ID de usuario válido            |401                 |
+|PATCH /coincidencias/{id}/estado| dueño   |Detalle de Coincidencia  |Coincidencia actualizada con nuevo estado              |Transición permitida y autoría de la coincidencia            |409/403                 |
+
+### Matriz pantalla × endpoint
+
+| Pantalla             | [GET /recurso] | [POST /recurso] | [PATCH /recurso/{id}/estado] | [GET /recurso/{id}] |
+|----------            |----------------|-----------------|------------------------------|---------------------|
+|Mis reportes          |     x          |                 |                              |                     |
+|Nuevo Reportes        |                |        x        |                              |                     |
+|bandera coincidencias |                |                 |                              |             x       |
+|Detalle coincidencia  |                |                 |            x                 |                     |
+
+
+
+
+## 8. Declaración de IA
+Se utilizó ChatGPT para la corrección gramatical de las secciones 1 y 2. Las secciones 3 a 7 se redactaron y desarrollaron íntegramente por los integrantes de la pareja.
+
