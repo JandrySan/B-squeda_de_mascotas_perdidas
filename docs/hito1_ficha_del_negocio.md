@@ -126,51 +126,66 @@ type Coincidencia struct {
 	Creado              time.Time `json:"creado"`
 }
 
+```
+
 Elegimos float64 para PuntajeSimilitud mapeado como decimal(5,2) en la BD para almacenar porcentajes con precisión exacta (ej. 85.50%)
 
-
+```mermaid
 erDiagram
-    USUARIO ||--o{ REPORTE_PERDIDO : "registra"
-    USUARIO ||--o{ REPORTE_ENCONTRADO : "registra"
-    REPORTE_PERDIDO ||--o{ COINCIDENCIA : "genera"
-    REPORTE_ENCONTRADO ||--o{ COINCIDENCIA : "recibe"
+    Usuario ||--o{ ReportePerdido : "registra"
+    Usuario ||--o{ ReporteEncontrado : "registra"
+    ReportePerdido ||--o{ Coincidencia : "genera"
+    ReporteEncontrado ||--o{ Coincidencia : "recibe"
 
-    USUARIO {
+    Usuario {
         int id
         string nombre
         string correo
         string rol
     }
-    REPORTE_PERDIDO {
+    ReportePerdido {
         int id
         string nombre_mascota
         string especie
         string estado
     }
-    REPORTE_ENCONTRADO {
+    ReporteEncontrado {
         int id
         string especie
         string ubicacion
         string estado
     }
-    COINCIDENCIA {
+    Coincidencia {
         int id
         float puntaje_similitud
         string estado
     }
+```
 
-##diagrama de estado 
+## 5. Máquina de estados
 
+| Estado | Qué significa en el negocio |
+|--------|-----------------------------|
+| pendiente (inicial) | El sistema creó una coincidencia, a la espera del dueño. |
+| confirmado | El dueño aceptó que es su mascota. |
+| rechazado | El dueño indicó que no es su mascota. |
+
+| De | A | Quién la hace | Condición |
+|----|---|---------------|-----------|
+| pendiente | confirmado | dueño | Reconoce a su mascota en la foto/datos. |
+| pendiente | rechazado | dueño | Determina que no es su mascota. |
+
+```mermaid
 stateDiagram-v2
     [*] --> pendiente
     pendiente --> confirmado : dueño confirma mascota
     pendiente --> rechazado : dueño descarta coincidencia
     confirmado --> [*]
     rechazado --> [*]
-    note right of confirmado
-        De confirmado no se puede revertir:
-        ambos reportes pasan automáticamente a resuelto.
-    end note
+```
+
+**Transición prohibida:** De *confirmado* o *rechazado* no se puede volver a *pendiente*[cite: 9]. 
+**Razón:** Si el dueño confirma, ambos reportes pasan automáticamente a resuelto y se cierra el ciclo[cite: 15]. Si rechaza, la coincidencia se descarta permanentemente para no generar spam con el mismo reporte[cite: 15].
 
 
 
