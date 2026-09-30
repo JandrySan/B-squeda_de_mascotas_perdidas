@@ -59,17 +59,28 @@ usuario:clave@tcp(127.0.0.1:3306)/petfind_db?parseTime=true
 
 ## E. Diagrama de secuencia del caso de uso principal
 
-<!-- Actor → pantalla → endpoint → base de datos. GitHub dibuja Mermaid solo.
-     Borren el ejemplo y pongan el suyo. -->
-
 ```mermaid
 sequenceDiagram
-    Agente->>Bandeja: toca "Tomar ticket"
-    Bandeja->>API: PATCH /tickets/1042/estado
-    API->>BD: valida la transición y actualiza el estado
-    BD-->>API: ok
-    API-->>Bandeja: 200 con el ticket actualizado
+    actor Dueño
+    participant Pantalla as Pantalla: Nuevo Reporte
+    participant API as Endpoint: POST /reportes/perdidos
+    participant BD as Base de Datos
+
+    Dueño->>Pantalla: Ingresa datos y foto de la mascota
+    Pantalla->>API: POST /reportes/perdidos (JSON)
+    API->>API: Valida campos obligatorios
+    alt Datos correctos
+        API->>BD: Inserta registro de ReportePerdido
+        BD-->>API: Retorna ID generado
+        API-->>Pantalla: Código 201 Created (JSON del reporte)
+        Pantalla-->>Dueño: Muestra mensaje de éxito y redirige a Mis Reportes
+    else Faltan datos o formato inválido
+        API-->>Pantalla: Código 422 Unprocessable Entity
+        Pantalla-->>Dueño: Muestra alerta de error en el formulario
+    end
 ```
+
+
 
 ## F. Capturas de respuestas
 
